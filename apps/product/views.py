@@ -14,7 +14,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['created_at', 'price', 'name']
-    lookup_field = 'slug'  # usar slug en URLs si lo deseas
+    ordering = ['-created_at']
+    lookup_field = 'slug'
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -24,5 +25,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        # si quieres asignar creador u otros datos: serializer.save(owner=self.request.user)
-        serializer.save()
+        # asigna automáticamente el usuario autenticado como creador
+        serializer.save(owner=self.request.user)
+
+    def perform_destroy(self, instance):
+        # solo el creador puede eliminar el producto
+        if instance.owner == self.request.user or self.request.user.is_staff:
+            instance.delete()
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No puedes eliminar productos de otros usuarios.")
