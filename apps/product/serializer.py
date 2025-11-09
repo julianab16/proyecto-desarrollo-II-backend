@@ -6,9 +6,9 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'code', 'name', 'slug', 'description', 'comment',
-            'image', 'price', 'stock', 'is_active', 'created_at', 'updated_at'
+            'image', 'price', 'stock', 'is_active', 'created_at', 'updated_at', 'owner'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'owner']
 
     def validate_code(self, value):
         if value is None:

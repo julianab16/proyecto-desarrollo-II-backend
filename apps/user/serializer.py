@@ -10,9 +10,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'email',
-            'dni', 'phone_number', 'password', 'role'
+            'dni', 'phone_number', 'password', 'role', 'is_staff'
         ]
-        read_only_fields = ['id', 'username']
+        read_only_fields = ['id', 'username', 'is_staff']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -22,9 +22,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'first_name', 'last_name', 'email',
-            'dni', 'phone_number', 'password', 'role'
+            'dni', 'phone_number', 'password', 'role', 'is_staff'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'is_staff']
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
