@@ -18,11 +18,32 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from apps.user import urls as user_urls
-from django.shortcuts import redirect
+from django.http import JsonResponse
+
+def api_root(request):
+    """Página de inicio de la API"""
+    return JsonResponse({
+        'message': 'API L\'Atelier - Backend',
+        'version': '1.0',
+        'status': 'running',
+        'database': 'Supabase PostgreSQL',
+        'endpoints': {
+            'admin': '/admin/',
+            'api_docs': {
+                'users': '/api/users/',
+                'products': '/api/products/',
+                'auth': {
+                    'register': '/api/auth/register/',
+                    'login': '/api/auth/token/',
+                    'refresh': '/api/auth/token/refresh/',
+                    'me': '/api/auth/me/',
+                }
+            }
+        }
+    })
 
 urlpatterns = [
-    # path('', lambda request: redirect('/admin/')),
+    path('', api_root, name='api-root'),  # Página de inicio con info de la API
     path('admin/', admin.site.urls),
     path('api/', include(('apps.user.urls', 'user'), namespace='user')),
     path('api/', include(('apps.product.urls', 'product'), namespace='product')),
