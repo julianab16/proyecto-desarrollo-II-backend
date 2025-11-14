@@ -52,14 +52,14 @@ jobs:
     - name: Ejecutar migraciones
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        DJANGO_SETTINGS_MODULE: config.settings
+        DJANGO_SETTINGS_MODULE: l_atelier.settings
       run: |
         python manage.py migrate --noinput
     
     - name: Ejecutar pruebas con cobertura
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        DJANGO_SETTINGS_MODULE: config.settings
+        DJANGO_SETTINGS_MODULE: l_atelier.settings
       run: |
         # Ejecutar pruebas con coverage en la carpeta apps
         python -m coverage run --source='apps' manage.py test apps --keepdb
