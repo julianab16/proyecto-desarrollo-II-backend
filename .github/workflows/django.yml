@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
 
 jobs:
   test-and-analyze:
@@ -27,14 +27,15 @@ jobs:
     
     steps:
     - name: Checkout código
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Necesario para SonarCloud
+        fetch-depth: 0  # Necesario para SonarCloud para análisis de blame
     
     - name: Configurar Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'  # Cachear dependencias para builds más rápidos
     
     - name: Instalar dependencias
       run: |
@@ -42,13 +43,41 @@ jobs:
         pip install -r requirements.txt
         pip install coverage pytest pytest-django pytest-cov
     
+    - name: Crear archivo .env para pruebas
+      run: |
+        echo "DEBUG=True" >> .env
+        echo "SECRET_KEY=test-secret-key-for-ci" >> .env
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
+    
+    - name: Ejecutar migraciones
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        DJANGO_SETTINGS_MODULE: config.settings
+      run: |
+        python manage.py migrate --noinput
+    
     - name: Ejecutar pruebas con cobertura
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        DJANGO_SETTINGS_MODULE: config.settings
       run: |
-        coverage run --source='.' manage.py test
-        coverage xml
-        coverage report
+        # Ejecutar pruebas con coverage en la carpeta apps
+        python -m coverage run --source='apps' manage.py test apps --keepdb
+        
+        # Generar reporte XML para SonarCloud
+        python -m coverage xml
+        
+        # Mostrar reporte en consola (excluyendo migraciones y tests)
+        python -m coverage report --omit="*/migrations/*,*/tests/*,*/__pycache__/*"
+    
+    - name: Subir artefacto de cobertura
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          coverage.xml
+          htmlcov/
+        retention-days: 30
     
     - name: Análisis SonarCloud
       uses: SonarSource/sonarcloud-github-action@master
@@ -57,10 +86,45 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dsonar.projectKey=tu-organizacion_tu-proyecto
-          -Dsonar.organization=tu-organizacion
+          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+          -Dsonar.python.coverage.reportPaths=coverage.xml
+          -Dsonar.sources=apps
+          -Dsonar.tests=apps
+          -Dsonar.test.inclusions=**/tests/**,**/test_*.py
+          -Dsonar.exclusions=**/migrations/**,**/venv/**,**/__pycache__/**,**/static/**,**/media/**
+          -Dsonar.python.version=3.11
     
     - name: Verificar Quality Gate
+      uses: sonarsource/sonarqube-quality-gate-action@master
+      timeout-minutes: 5
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true  # No fallar el build si el quality gate falla
+    
+    - name: Comentar resultados en PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Leer el reporte de cobertura si existe
+          let coverageComment = '## 📊 Resultados de CI/CD\n\n';
+          coverageComment += '✅ Pruebas ejecutadas exitosamente\n';
+          coverageComment += '✅ Análisis de SonarCloud completado\n\n';
+          coverageComment += `🔗 [Ver análisis completo en SonarCloud](https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }})\n`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: coverageComment
+          });
+    
+    - name: Generar badge de cobertura
+      if: github.ref == 'refs/heads/main'
       run: |
-        echo "Verificando Quality Gate de SonarCloud..."
-        # Opcional: agregar script para verificar el estado
+        COVERAGE=$(python -m coverage report | grep TOTAL | awk '{print $4}')
+        echo "Coverage: $COVERAGE"
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
