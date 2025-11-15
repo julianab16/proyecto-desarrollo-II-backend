@@ -18,14 +18,14 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-SECRET_KEY = config('SECRET_KEY')
+# Secret key con valor por defecto para CI
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-test-key-only-for-ci')
 
-DEBUG=True
+# Debug
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['*']
-### 
+# Allowed hosts
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 AUTH_USER_MODEL = 'user.User' 
 # Application definition
