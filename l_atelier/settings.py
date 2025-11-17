@@ -14,18 +14,57 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 
+import os
+
+# Detectar si estamos en CI/CD
+IS_CI = os.environ.get('CI', False) == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+
+# CONFIGURACIÓN SEGÚN ENTORNO
+
+if IS_CI:
+    # Estamos en GitHub Actions usar variables de entorno directamente
+    SECRET_KEY = os.environ.get('SECRET_KEY', '7x6-2e&_js+%#hp_aea589ht26tazg9i-0lcy2dk^98v2m*!92')
+    DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+    
+    # Database para CI
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'test_db'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
+    
+    print("🔧 Usando configuración de CI/CD")
+    
+else:
+    # Estamos en desarrollo/producción - usar decouple normalmente
+    SECRET_KEY = config('SECRET_KEY')
+    DEBUG = config('DEBUG', default=False, cast=bool)
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+    
+    # Database para desarrollo/producción
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default=5432, cast=int),
+        }
+    }
+    
+    print("🔧 Usando configuración de Desarrollo/Producción")
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Secret key con valor por defecto para CI
-SECRET_KEY = config('SECRET_KEY')
-
-# Debug
-DEBUG = config('DEBUG', default=True, cast=bool)
-
-# Allowed hosts
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 AUTH_USER_MODEL = 'user.User' 
 # Application definition
@@ -77,6 +116,7 @@ WSGI_APPLICATION = 'l_atelier.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Configuración con PostgreSQL de Supabase
+"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -92,7 +132,7 @@ DATABASES = {
         'CONN_MAX_AGE': 0,
     }
 }
-
+"""
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
