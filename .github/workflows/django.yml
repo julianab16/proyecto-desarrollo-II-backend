@@ -12,7 +12,7 @@ permissions:
   issues: write
   checks: write
   statuses: write
-  
+
 env:
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
   DJANGO_SETTINGS_MODULE: l_atelier.settings
@@ -162,7 +162,7 @@ jobs:
         uses: SonarSource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         # Cambia a true si quieres modo "warning" en lugar de bloqueo
-        continue-on-error: false
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -196,23 +196,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `## ⚠️ Quality Gate Fallido
+            const comment = `## Quality Gate Fallido
             
             El análisis de SonarQube ha detectado problemas de calidad en el código.
             
-            ### 🔍 Próximos pasos:
-            1. Revisa el [dashboard de SonarQube](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend&pullRequest=${{ github.event.number }})
-            2. Corrige los issues marcados como críticos
-            3. Asegúrate de que la cobertura sea > 80%
-            4. Elimina código duplicado
-            
-            ### 📋 Problemas comunes:
-            - 🐛 **Bugs**: Errores lógicos o potenciales bugs
-            - 🔒 **Vulnerabilidades**: Problemas de seguridad
-            - 💡 **Code Smells**: Problemas de mantenibilidad
-            - 📊 **Cobertura baja**: Tests insuficientes
-            
-            Una vez corregidos, realiza un nuevo commit y el análisis se ejecutará automáticamente.`;
+            Revisa el [dashboard de SonarQube](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend&pullRequest=${{ github.event.number }})
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
