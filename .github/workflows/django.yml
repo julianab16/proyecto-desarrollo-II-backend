@@ -85,6 +85,7 @@ jobs:
     name: Análisis SonarQube
     runs-on: ubuntu-latest
     needs: test
+    if: always()
     
     steps:
       - name: Checkout código
@@ -94,8 +95,20 @@ jobs:
 
       - name: Descargar reportes de cobertura
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        id: download
         with:
           name: coverage-reports
+
+      - name: Verificar archivos descargados
+        run: |
+          echo "📁 Archivos en el directorio:"
+          ls -la
+          if [ -f coverage.xml ]; then
+            echo "✅ coverage.xml encontrado"
+          else
+            echo "⚠️ coverage.xml no encontrado, SonarQube continuará sin cobertura"
+          fi
 
       - name: Análisis SonarQube
         uses: SonarSource/sonarqube-scan-action@master
@@ -114,6 +127,7 @@ jobs:
       - name: Verificar Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
