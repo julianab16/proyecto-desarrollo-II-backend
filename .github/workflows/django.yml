@@ -148,7 +148,17 @@ jobs:
 
       - name: Instalar herramientas de linting
         run: |
-          pip install black==24.8.0 isort==5.13.2 flake8==7.0.0
+          pip install black==24.8.0 isort==5.13.2 flake8==7.0.0 autoflake==2.3.1
+
+      - name: Limpiar imports no usados
+        run: |
+          autoflake \
+            --in-place \
+            --remove-all-unused-imports \
+            --remove-unused-variables \
+            --recursive \
+            --exclude=migrations,venv,.venv \
+            .
 
       - name: Auto-formatear código con Black
         run: |
