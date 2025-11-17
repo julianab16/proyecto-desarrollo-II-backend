@@ -56,13 +56,13 @@ jobs:
 
       - name: Ejecutar migraciones
         env:
-          DJANGO_SETTINGS_MODULE: myproject.settings
+          DJANGO_SETTINGS_MODULE: l_atelier.settings
         run: |
           python manage.py migrate --noinput
 
       - name: Ejecutar tests con coverage
         env:
-          DJANGO_SETTINGS_MODULE: myproject.settings
+          DJANGO_SETTINGS_MODULE: l_atelier.settings
         run: |
           coverage run --source='.' manage.py test
           coverage report
@@ -138,7 +138,7 @@ jobs:
 
       - name: Collectstatic
         env:
-          DJANGO_SETTINGS_MODULE: myproject.settings
+          DJANGO_SETTINGS_MODULE: l_atelier.settings
         run: |
           python manage.py collectstatic --noinput
 
