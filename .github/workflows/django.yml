@@ -1,22 +1,33 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline con SonarQube
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+env:
+  POSTGRES_DB: test_db
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
 jobs:
-  test-and-analyze:
+  test:
+    name: Tests y Cobertura
     runs-on: ubuntu-latest
     
     services:
       postgres:
-        image: postgres:15  # Actualizado de 13 a 15
+        image: postgres:15-alpine
         env:
+          POSTGRES_DB: test_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -24,119 +35,115 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para SonarQube
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install coverage pytest pytest-django pytest-cov
+
+      - name: Ejecutar migraciones
+        env:
+          DJANGO_SETTINGS_MODULE: myproject.settings
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Ejecutar tests con coverage
+        env:
+          DJANGO_SETTINGS_MODULE: myproject.settings
+        run: |
+          coverage run --source='.' manage.py test
+          coverage report
+          coverage xml -o coverage.xml
+
+      - name: Ejecutar pytest con cobertura
+        run: |
+          pytest --cov=. --cov-report=xml:coverage-pytest.xml --cov-report=html --cov-report=term
+
+      - name: Subir artefactos de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            coverage-pytest.xml
+            htmlcov/
+            .coverage
+
+  sonarqube:
+    name: Análisis SonarQube
+    runs-on: ubuntu-latest
+    needs: test
     
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Necesario para SonarCloud para análisis de blame
+      - name: Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Análisis completo de Git para SonarQube
+
+      - name: Descargar reportes de cobertura
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+
+      - name: Análisis SonarQube
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ github.event.repository.name }}
+            -Dsonar.organization=${{ github.repository_owner }}
+
+      - name: Verificar Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test, sonarqube]
+    if: github.ref == 'refs/heads/main'
     
-    - name: Configurar Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'  # Cachear dependencias para builds más rápidos
-    
-    - name: Instalar dependencias
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install coverage pytest pytest-django pytest-cov
-    
-    - name: Crear archivo .env para pruebas
-      run: |
-        cat > .env << EOF
-        DEBUG=True
-        SECRET_KEY=test-secret-key-for-github-actions-ci-pipeline
-        DB_ENGINE=django.db.backends.postgresql
-        DB_NAME=test_db
-        DB_USER=postgres
-        DB_PASSWORD=postgres
-        DB_HOST=localhost
-        DB_PORT=5432
-        ALLOWED_HOSTS=localhost,127.0.0.1
-        CORS_ALLOWED_ORIGINS=http://localhost:3000
-        EOF
-    
-    - name: Verificar variables de entorno
-      run: |
-        echo "Verificando que .env existe..."
-        cat .env
-    
-    - name: Ejecutar migraciones
-      env:
-        DJANGO_SETTINGS_MODULE: l_atelier.settings
-      run: |
-        python manage.py migrate --noinput
-    
-    - name: Ejecutar pruebas con cobertura
-      env:
-        DJANGO_SETTINGS_MODULE: l_atelier.settings
-      run: |
-        # Ejecutar pruebas con coverage en la carpeta apps
-        python -m coverage run --source='apps' manage.py test apps --keepdb
-        
-        # Generar reporte XML para SonarCloud
-        python -m coverage xml
-        
-        # Mostrar reporte en consola (excluyendo migraciones y tests)
-        python -m coverage report --omit="*/migrations/*,*/tests/*,*/__pycache__/*"
-    
-    - name: Subir artefacto de cobertura
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: |
-          coverage.xml
-          htmlcov/
-        retention-days: 30
-    
-    - name: Análisis SonarCloud
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        args: >
-          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-          -Dsonar.python.coverage.reportPaths=coverage.xml
-          -Dsonar.sources=apps
-          -Dsonar.tests=apps
-          -Dsonar.test.inclusions=**/tests/**,**/test_*.py
-          -Dsonar.exclusions=**/migrations/**,**/venv/**,**/__pycache__/**,**/static/**,**/media/**
-          -Dsonar.python.version=3.11
-    
-    - name: Verificar Quality Gate
-      uses: sonarsource/sonarqube-quality-gate-action@master
-      timeout-minutes: 5
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      continue-on-error: true  # No fallar el build si el quality gate falla
-    
-    - name: Comentar resultados en PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          
-          // Leer el reporte de cobertura si existe
-          let coverageComment = '## 📊 Resultados de CI/CD\n\n';
-          coverageComment += '✅ Pruebas ejecutadas exitosamente\n';
-          coverageComment += '✅ Análisis de SonarCloud completado\n\n';
-          coverageComment += `🔗 [Ver análisis completo en SonarCloud](https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }})\n`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: coverageComment
-          });
-    
-    - name: Generar badge de cobertura
-      if: github.ref == 'refs/heads/main'
-      run: |
-        COVERAGE=$(python -m coverage report | grep TOTAL | awk '{print $4}')
-        echo "Coverage: $COVERAGE"
-        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Collectstatic
+        env:
+          DJANGO_SETTINGS_MODULE: myproject.settings
+        run: |
+          python manage.py collectstatic --noinput
+
+      - name: Subir artefactos de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: staticfiles
+          path: staticfiles/
