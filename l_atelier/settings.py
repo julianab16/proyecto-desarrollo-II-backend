@@ -13,13 +13,19 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Secret key con valor por defecto para CI
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-test-key-only-for-ci')
+# Secret key - only allow default in CI environments
+# In CI environments (GitHub Actions, etc.), the CI env var is set to 'true'
+if os.getenv('CI') == 'true':
+    SECRET_KEY = config('SECRET_KEY', default='django-insecure-test-key-only-for-ci-do-not-use-in-production')
+else:
+    # Fail fast if SECRET_KEY is not set in non-CI environments
+    SECRET_KEY = config('SECRET_KEY')  # This will raise an error if not set
 
 # Debug
 DEBUG = config('DEBUG', default=False, cast=bool)
