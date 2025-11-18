@@ -1,0 +1,41 @@
+
+[run]
+source =  apps
+omit = 
+    */migrations/*
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */venv/*
+    */virtualenv/*
+    */staticfiles/*
+    */media/*
+    manage.py
+    */settings/*
+    */settings.py
+    */wsgi.py
+    */asgi.py
+    */__init__.py
+    */apps.py
+    */admin.py
+    */urls.py
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @abc.abstractmethod
+    
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml
