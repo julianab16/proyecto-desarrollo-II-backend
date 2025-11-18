@@ -121,9 +121,13 @@ jobs:
             echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
           fi   
           
-      - name: Probar conexión con Sonar
+      - name: Probar conexión a SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          curl -u $SONAR_TOKEN: https://sonarcloud.io/api/server/version
+          set -e
+          echo "Comprobando conexión a SonarCloud..."
+          curl -sS -u "${SONAR_HOST_URL}:" "https://sonarcloud.io/api/server/version" || { echo "No se pudo conectar a SonarCloud"; exit 1; }
 
       - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
