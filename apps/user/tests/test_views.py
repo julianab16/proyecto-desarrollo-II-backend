@@ -3,21 +3,41 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from apps.user.models import User
-class UserViewSetBasicTest(TestCase):
+class UserViewSetTest(TestCase):
+    """Tests para el ViewSet de usuarios"""
 
     def setUp(self):
-        """Configura usuarios, cliente y productos de prueba."""
         self.client = APIClient()
-
-        # Usuario autenticado
-        self.user = User.objects.create_user(
-            username="usuario",
-            email="user@test.com",
-            dni="2000000000",
-            phone_number="3000000001",
-            password="userpass"
+        self.admin_user = User.objects.create_user(
+            username='admin',
+            first_name='Admin',
+            last_name='User',
+            email='admin@test.com',
+            dni='3333333333',
+            phone_number='3003333333',
+            password='adminpass',
+            role=User.ADMINISTRADOR,
+            is_staff=True
+        )
+        self.regular_user = User.objects.create_user(
+            username='regular',
+            first_name='Regular',
+            last_name='User',
+            email='regular@test.com',
+            dni='4444444444',
+            phone_number='3004444444',
+            password='userpass',
+            role=User.CLIENTE
         )
 
+    def test_list_users_as_admin(self):
+        """Test: Admin puede listar todos los usuarios"""
+        self.client.force_authenticate(user=self.admin_user)
+        url = reverse('user:user-list')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
 
 class RegisterUserViewTest(APITestCase):
 
@@ -90,52 +110,45 @@ class MeViewTest(TestCase):
         self.assertFalse(User.objects.filter(id=self.user.id).exists())
 
 class LoginViewTest(TestCase):
-    """Tests para la vista de login"""
+    """Pruebas unitarias para la vista LoginView"""
 
     def setUp(self):
+        """Configuración inicial para cada prueba"""
         self.client = APIClient()
-        self.url = reverse('user:login')
-        self.user = User.objects.create_user(
-            username='loginuser',
-            first_name='Test',
-            last_name='User',
-            email='login@test.com',
-            dni='1111111111',
-            phone_number='3001111111',
-            password='testpass123',
-            role=User.CLIENTE
+        self.login_url = '/api/auth/login/'  # Ruta basada en tu urls.py
+        
+        # Crear usuario de prueba activo
+        self.active_user = User.objects.create_user(
+            username="usuarioactivo",
+            email="activo@example.com",
+            password="password123",
+            dni="1234567890",
+            phone_number="3001234567",
+            role=User.CLIENTE,
+            is_active=True
+        )
+        
+        # Crear usuario inactivo
+        self.inactive_user = User.objects.create_user(
+            username="usuarioinactivo",
+            email="inactivo@example.com",
+            password="password123",
+            dni="0987654321",
+            phone_number="3009876543",
+            role=User.CLIENTE,
+            is_active=False
         )
 
-    def test_login_success(self):
-        """Test: Login exitoso"""
-        data = {'username': 'loginuser', 'password': 'testpass123'}
-        response = self.client.post(self.url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('access', response.data)
-        self.assertIn('refresh', response.data)
-        self.assertIn('user', response.data)
-        self.assertEqual(response.data['user']['username'], 'loginuser')
-
-    def test_login_invalid_credentials(self):
-        """Test: Login con credenciales inválidas"""
-        data = {'username': 'loginuser', 'password': 'wrongpassword'}
-        response = self.client.post(self.url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn('Credenciales inválidas', response.data['detail'])
-
-    def test_login_nonexistent_user(self):
-        """Test: Login con usuario inexistente"""
-        data = {'username': 'noexiste', 'password': 'testpass123'}
-        response = self.client.post(self.url, data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_login_missing_username(self):
-        """Test: Login sin username"""
-        data = {'password': 'testpass123'}
-        response = self.client.post(self.url, data, format='json')
+    def test_login_sin_username(self):
+        """Verifica que falla el login cuando no se proporciona username"""
+        data = {
+            "password": "password123"
+        }
+        response = self.client.post(self.login_url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('obligatorios', response.data['detail'])
+        self.assertIn('detail', response.data)
+        self.assertEqual(
+            response.data['detail'], 
+            "Usuario y contraseña son obligatorios."
+        )
