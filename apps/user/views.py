@@ -3,15 +3,15 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from .models import User
 
 from .serializer import RegisterSerializer, UserSerializer
+import logging
 
 logger = logging.getLogger(__name__)
 
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -64,7 +64,7 @@ class MeView(APIView):
         return Response(serializer.data)
 
     def delete(self, request):
-        # elimina la cuenta del usuario autenticado
+        # Elimina la cuenta del usuario autenticado
         user = request.user
         user.delete()
         return Response(
@@ -76,10 +76,8 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-
-        username = request.data.get("username")
-        password = request.data.get("password")
-
+        username = request.data.get('username')
+        password = request.data.get('password')
         if not username or not password:
             # No loggeamos la contraseña. Registramos que faltan credenciales y las claves recibidas.
             logger.warning("Login failed - missing credentials. data_keys=%s", list(request.data.keys()))
@@ -94,7 +92,7 @@ class LoginView(APIView):
                 {'detail': 'Credenciales inválidas.'},
                 status=401
             )
-        
+
         if not user.is_active:
             logger.warning("Login failed - inactive user username=%s id=%s", username, user.id)
             return Response(
@@ -102,17 +100,15 @@ class LoginView(APIView):
             )
 
         refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "role": user.role,
-                    "is_staff": user.is_staff,
-                },
-            },
-            status=200,
-        )
+        logger.info("User login successful username=%s id=%s", username, user.id)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'is_staff': user.is_staff
+             }
+        }, status=200)

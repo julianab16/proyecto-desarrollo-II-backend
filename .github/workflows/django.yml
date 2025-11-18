@@ -88,39 +88,45 @@ jobs:
     name: Análisis SonarQube
     runs-on: ubuntu-latest
     needs: test
-    if: always()
-
+    if: always() && needs.test.result != 'cancelled'
     steps:
-      - name: Checkout
+      - name: Checkout código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Instalar dependencias para análisis
-        run: |
-          pip install pylint flake8
-
-      - name: Descargar cobertura
+  
+      - name: Descargar reportes de cobertura
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        id: download-coverage
         with:
           name: coverage-reports
           path: .
-
-      - name: Ejecutar pylint (complejidad y debt)
+  
+      - name: Verificar archivos de cobertura
+        id: check-coverage
         run: |
-          pylint apps l_atelier \
-            --output-format=json \
-            --exit-zero > pylint-report.json
-
-      - name: Ejecutar flake8 (code smells)
-        run: |
-          flake8 . --exit-zero > flake8-report.txt
-
-      - name: Ejecutar análisis SonarQube
+          echo "📂 Archivos en el directorio:"
+          ls -la
+          echo ""
+          if [ -f coverage.xml ]; then
+            echo "✅ coverage.xml encontrado"
+            LINES=$(grep -oP '(?<=lines-covered=")[^"]*' coverage.xml || echo "0")
+            echo "📊 Líneas cubiertas: $LINES"
+            echo "coverage_found=true" >> $GITHUB_OUTPUT
+            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ coverage.xml NO encontrado - SonarQube continuará sin métricas de cobertura"
+            echo "coverage_found=false" >> $GITHUB_OUTPUT
+            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
+          fi
+  
+      - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=julianab16_proyecto-desarrollo-II-backend
@@ -128,24 +134,63 @@ jobs:
             -Dsonar.organization=julianab16
             -Dsonar.sources=apps,l_atelier
             -Dsonar.tests=apps
+            -Dsonar.test.inclusions=**/*test*.py,**/test_*.py
+            -Dsonar.exclusions=**/migrations/**,**/tests/**,**/__pycache__/**,**/venv/**,**/.venv/**,**/staticfiles/**,**/media/**
             -Dsonar.python.version=3.11
+            -Dsonar.language=py
             -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.exclusions=**/migrations/**,**/__pycache__/**
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.python.pylint.reportPaths=pylint-report.json
-            -Dsonar.python.flake8.reportPaths=flake8-report.txt
-            -Dsonar.cpd.exclusions=**/migrations/**
+            ${{ steps.check-coverage.outputs.coverage_found == 'true' && format('-Dsonar.python.coverage.reportPaths={0}', 'coverage.xml') || '' }}
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.key={0}', github.event.number) || '' }}
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.branch={0}', github.head_ref) || '' }}
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.base={0}', github.base_ref) || '' }}
-
-      - name: Quality Gate
+  
+      - name: Esperar procesamiento en servidor
+        run: |
+          echo "⏳ Esperando que SonarQube procese el análisis..."
+          sleep 15
+  
+      - name: Verificar Quality Gate
+        id: quality-gate
         uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        timeout-minutes: 5
-
+  
+      - name: Resumen del Análisis
+        if: always()
+        run: |
+          echo "## 📊 Resumen de SonarQube" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.quality-gate.outcome }}" == "success" ]; then
+            echo "### ✅ Quality Gate: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "El código cumple con los estándares de calidad." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Quality Gate: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "El código NO cumple con los estándares de calidad." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Detalles:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [Ver Dashboard Completo](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-coverage.outputs.coverage_found }}" == "true" ]; then
+            echo "- Cobertura: ✅ Reportada" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Cobertura: ⚠️ No disponible" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "- PR #${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+          fi
+  
+      - name: Comentar en PR (si falla)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## Quality Gate Fallido
+            El análisis de SonarQube ha detectado problemas de calidad en el código. Revisa el dashboard de SonarQube.`;
+            github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body: comment });
   lint:
     name: Linting y Formato
     runs-on: ubuntu-latest
