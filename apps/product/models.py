@@ -5,6 +5,7 @@ from django.utils.text import slugify
 
 User = get_user_model()
 
+
 class Product(models.Model):
     name = models.CharField(max_length=150, verbose_name="Nombre")
     code_validator = RegexValidator(
@@ -60,3 +61,4 @@ class Product(models.Model):
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
         ordering = ["-created_at"]
+
