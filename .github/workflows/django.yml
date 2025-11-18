@@ -54,7 +54,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov
+          pip install pytest pytest-django pytest-cov django-cors-headers whitenoise
 
       - name: Ejecutar migraciones
         run: python manage.py migrate --noinput

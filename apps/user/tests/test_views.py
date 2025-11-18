@@ -1,12 +1,12 @@
 from django.test import TestCase
-from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
 
 from apps.user.models import User
 
+User = get_user_model()
+
 class UserViewSetBasicTest(TestCase):
-    """Pruebas básicas del ProductViewSet (solo queryset y retrieve)."""
 
     def setUp(self):
         """Configura usuarios, cliente y productos de prueba."""
@@ -22,11 +22,8 @@ class UserViewSetBasicTest(TestCase):
         )
 
 
-
-
-User = get_user_model()
-
 class RegisterUserViewTest(APITestCase):
+
     def setUp(self):
         self.client = APIClient()
         self.register_url = '/api/auth/register/'
