@@ -119,8 +119,12 @@ jobs:
             echo "⚠️ coverage.xml NO encontrado - SonarQube continuará sin métricas de cobertura"
             echo "coverage_found=false" >> $GITHUB_OUTPUT
             echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
-          fi
-  
+          fi   
+          
+      - name: Probar conexión con Sonar
+        run: |
+          curl -u $SONAR_TOKEN: $SONAR_HOST_URL/api/server/version
+
       - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
         env:
