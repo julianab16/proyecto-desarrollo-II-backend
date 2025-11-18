@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .models import User
+
 from .serializer import RegisterSerializer, UserSerializer
 import logging
 
@@ -91,6 +92,7 @@ class LoginView(APIView):
                 {'detail': 'Credenciales inválidas.'},
                 status=401
             )
+
         if not user.is_active:
             logger.warning("Login failed - inactive user username=%s id=%s", username, user.id)
             return Response(

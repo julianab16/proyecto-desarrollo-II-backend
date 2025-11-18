@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
 from apps.user.models import User
+from rest_framework.test import APITestCase, APIClient
 
 
 class LoginViewTest(TestCase):
