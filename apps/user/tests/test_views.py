@@ -1,9 +1,10 @@
 from django.test import TestCase
-from rest_framework.test import APIClient
 from rest_framework import status
-
+from django.contrib.auth import get_user_model
+from rest_framework.test import APITestCase, APIClient
 from apps.product.models import Product
-from apps.user.models import User
+
+User = get_user_model()
 
 
 class ProductViewSetBasicTest(TestCase):
@@ -80,14 +81,10 @@ class ProductViewSetBasicTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["slug"], "producto-activo")
-=======
-from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase, APIClient
-from django.urls import reverse
 
-User = get_user_model()
 
 class RegisterUserViewTest(APITestCase):
+
     def setUp(self):
         self.client = APIClient()
         self.register_url = '/api/auth/register/'
