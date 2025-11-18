@@ -1,8 +1,10 @@
 .env
+.env.production
 *.venv
 *.log
 *.pot
 *.pyc
+venv
 db.sqlite3
 db.sqlite3.bak
 media/
