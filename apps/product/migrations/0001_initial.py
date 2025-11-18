@@ -8,30 +8,80 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Product',
+            name="Product",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150, verbose_name='Nombre')),
-                ('code', models.CharField(max_length=30, unique=True, validators=[django.core.validators.RegexValidator(message='Solo letras mayúsculas, números y guiones.', regex='^[A-Z0-9\\-]+$')], verbose_name='Código')),
-                ('slug', models.SlugField(blank=True, max_length=160, unique=True, verbose_name='Slug')),
-                ('description', models.TextField(blank=True, verbose_name='Descripción')),
-                ('comment', models.TextField(blank=True, verbose_name='Comentario')),
-                ('image', models.ImageField(blank=True, null=True, upload_to='products/%Y/%m/%d/', verbose_name='Imagen')),
-                ('price', models.DecimalField(decimal_places=2, default=0.0, max_digits=10, verbose_name='Precio')),
-                ('stock', models.PositiveIntegerField(default=0, verbose_name='Stock')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Activo')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Creado')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Actualizado')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150, verbose_name="Nombre")),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=30,
+                        unique=True,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Solo letras mayúsculas, números y guiones.",
+                                regex="^[A-Z0-9\\-]+$",
+                            )
+                        ],
+                        verbose_name="Código",
+                    ),
+                ),
+                (
+                    "slug",
+                    models.SlugField(
+                        blank=True, max_length=160, unique=True, verbose_name="Slug"
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, verbose_name="Descripción"),
+                ),
+                ("comment", models.TextField(blank=True, verbose_name="Comentario")),
+                (
+                    "image",
+                    models.ImageField(
+                        blank=True,
+                        null=True,
+                        upload_to="products/%Y/%m/%d/",
+                        verbose_name="Imagen",
+                    ),
+                ),
+                (
+                    "price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.0,
+                        max_digits=10,
+                        verbose_name="Precio",
+                    ),
+                ),
+                ("stock", models.PositiveIntegerField(default=0, verbose_name="Stock")),
+                ("is_active", models.BooleanField(default=True, verbose_name="Activo")),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="Creado"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Actualizado"),
+                ),
             ],
             options={
-                'verbose_name': 'Producto',
-                'verbose_name_plural': 'Productos',
-                'ordering': ['-created_at'],
+                "verbose_name": "Producto",
+                "verbose_name_plural": "Productos",
+                "ordering": ["-created_at"],
             },
         ),
     ]
