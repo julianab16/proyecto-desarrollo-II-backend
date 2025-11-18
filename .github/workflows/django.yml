@@ -123,7 +123,7 @@ jobs:
           
       - name: Probar conexión con Sonar
         run: |
-          curl -u $SONAR_TOKEN: $SONAR_HOST_URL/api/server/version
+          curl -u $SONAR_TOKEN: https://sonarcloud.io/api/server/version
 
       - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
