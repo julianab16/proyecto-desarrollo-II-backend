@@ -52,55 +52,49 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-django pytest-cov
-
-      - name: Verificar estructura del proyecto
-        run: |
-          echo "Verificando estructura..."
-          ls -la
-          echo "PYTHONPATH: $PYTHONPATH"
-          python -c "import sys; print('Python path:', sys.path)"
 
       - name: Ejecutar migraciones
         run: python manage.py migrate --noinput
 
-      - name: Ejecutar tests con pytest
-        run: |
-          pytest -v \
-            --tb=short \
-            --strict-markers || true
-        continue-on-error: false
+      - name: Ejecutar tests
+        run: pytest --cov=apps --cov-report=xml --cov-report=term-missing
 
-      - name: Generar reporte de cobertura
+      - name: Verificar cobertura mínima (60%)
         run: |
-          echo "Cobertura de código:"
-          pytest --cov=apps --cov-report=term-missing --no-cov-on-fail || echo " Cobertura baja, pero continuando..."
+          echo "Validando cobertura mínima requerida..."
+          COVERAGE=$(grep -oP '(?<=line-rate=")[0-9.]+(?=")' coverage.xml | head -n 1)
+          PERCENT=$(echo "$COVERAGE * 100" | bc | awk '{printf("%.0f", $0)}')
+
+          echo "Cobertura detectada: $PERCENT%"
+
+          if [ "$PERCENT" -lt 60 ]; then
+            echo "❌ La cobertura es menor al 60% requerido."
+            exit 1
+          else
+            echo "✅ Cobertura aceptable."
+          fi
 
       - name: Subir reportes de cobertura
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: coverage-reports
-          path: |
-            coverage.xml
-            htmlcov/
+          path: coverage.xml
           retention-days: 30
 
   sonarqube:
     name: Análisis SonarQube
     runs-on: ubuntu-latest
     needs: test
-    # Solo ejecuta si el job test se completó (success o failure)
     if: always() && needs.test.result != 'cancelled'
-    
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para análisis de blame y history
-
+          fetch-depth: 0
+  
       - name: Descargar reportes de cobertura
         uses: actions/download-artifact@v4
         continue-on-error: true
@@ -108,32 +102,30 @@ jobs:
         with:
           name: coverage-reports
           path: .
-
+  
       - name: Verificar archivos de cobertura
         id: check-coverage
         run: |
           echo "📂 Archivos en el directorio:"
           ls -la
           echo ""
-          
           if [ -f coverage.xml ]; then
             echo "✅ coverage.xml encontrado"
             LINES=$(grep -oP '(?<=lines-covered=")[^"]*' coverage.xml || echo "0")
             echo "📊 Líneas cubiertas: $LINES"
-            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
             echo "coverage_found=true" >> $GITHUB_OUTPUT
+            echo "COVERAGE_EXISTS=true" >> $GITHUB_ENV
           else
-            echo "⚠️  coverage.xml NO encontrado - SonarQube continuará sin métricas de cobertura"
-            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
+            echo "⚠️ coverage.xml NO encontrado - SonarQube continuará sin métricas de cobertura"
             echo "coverage_found=false" >> $GITHUB_OUTPUT
+            echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
           fi
-
+  
       - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          # Añade contexto de GitHub para mejor integración
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: >
@@ -151,28 +143,26 @@ jobs:
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.key={0}', github.event.number) || '' }}
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.branch={0}', github.head_ref) || '' }}
             ${{ github.event_name == 'pull_request' && format('-Dsonar.pullrequest.base={0}', github.base_ref) || '' }}
-
+  
       - name: Esperar procesamiento en servidor
         run: |
           echo "⏳ Esperando que SonarQube procese el análisis..."
           sleep 15
-
+  
       - name: Verificar Quality Gate
         id: quality-gate
         uses: SonarSource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
-        # Cambia a true si quieres modo "warning" en lugar de bloqueo
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
+  
       - name: Resumen del Análisis
         if: always()
         run: |
           echo "## 📊 Resumen de SonarQube" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
           if [ "${{ steps.quality-gate.outcome }}" == "success" ]; then
             echo "### ✅ Quality Gate: PASSED" >> $GITHUB_STEP_SUMMARY
             echo "El código cumple con los estándares de calidad." >> $GITHUB_STEP_SUMMARY
@@ -180,44 +170,34 @@ jobs:
             echo "### Quality Gate: FAILED" >> $GITHUB_STEP_SUMMARY
             echo "El código NO cumple con los estándares de calidad." >> $GITHUB_STEP_SUMMARY
           fi
-          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Detalles:**" >> $GITHUB_STEP_SUMMARY
-          echo "-  [Ver Dashboard Completo](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend)" >> $GITHUB_STEP_SUMMARY
-          echo "-  Cobertura: ${{ steps.check-coverage.outputs.coverage_found == 'true' && '✅ Reportada' || '⚠️ No disponible' }}" >> $GITHUB_STEP_SUMMARY
-          echo "-  Branch: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "-  PR #${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- [Ver Dashboard Completo](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-coverage.outputs.coverage_found }}" == "true" ]; then
+            echo "- Cobertura: ✅ Reportada" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Cobertura: ⚠️ No disponible" >> $GITHUB_STEP_SUMMARY
           fi
-
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "- PR #${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+          fi
+  
       - name: Comentar en PR (si falla)
         if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const comment = `## Quality Gate Fallido
-            
-            El análisis de SonarQube ha detectado problemas de calidad en el código.
-            
-            Revisa el [dashboard de SonarQube](${{ secrets.SONAR_HOST_URL }}/dashboard?id=julianab16_proyecto-desarrollo-II-backend&pullRequest=${{ github.event.number }})
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+            El análisis de SonarQube ha detectado problemas de calidad en el código. Revisa el dashboard de SonarQube.`;
+            github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body: comment });
   lint:
     name: Linting y Formato
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout código
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}  # Importante para PRs
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configurar Python
         uses: actions/setup-python@v5
@@ -225,86 +205,35 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Instalar herramientas de linting
+      - name: Instalar herramientas
         run: |
-          pip install black==24.8.0 isort==5.13.2 flake8==7.0.0 autoflake==2.3.1
+          pip install black isort flake8 autoflake
 
-      - name: Limpiar imports no usados
+      - name: Ejecución de linters
         run: |
-          autoflake \
-            --in-place \
-            --remove-all-unused-imports \
-            --remove-unused-variables \
-            --recursive \
-            --exclude=migrations,venv,.venv \
-            .
-
-      - name: Auto-formatear código con Black
-        run: |
-          black . --exclude '(migrations|venv|\.venv|env|\.env)'
-
-      - name: Auto-ordenar imports con isort
-        run: |
-          isort . --skip migrations --skip venv --profile black
-
-      - name: Commit cambios de formato (si hay)
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "style: auto-format code with black and isort [skip ci]"
-          file_pattern: "*.py"
-          commit_user_name: "github-actions[bot]"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
-
-      - name: Verificar linting con Flake8
-        run: |
-          flake8 . \
-            --max-line-length=120 \
-            --exclude=migrations,venv,.venv,env,.env \
-            --extend-ignore=E203,W503,E501 \
-            --count \
-            --statistics
-        continue-on-error: false
-
-      - name: Comentar en PR si hay problemas
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '**Problemas de linting detectados**\n\nPor favor revisa los errores de Flake8 en los logs del workflow.'
-            })
+          autoflake --in-place --recursive --remove-all-unused-imports .
+          black .
+          isort . --profile black
+          flake8 .
 
   build:
     name: Build y Deploy
     runs-on: ubuntu-latest
     needs: [test, sonarqube, lint]
-    # Ejecuta en main Y develop
-    if: |
-      github.event_name == 'pull_request' && 
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-      
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Instalar dependencias
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Collectstatic
         run: python manage.py collectstatic --noinput
 
-      - name: Subir artefactos estáticos
+      - name: Subir artefactos de staticfiles
         uses: actions/upload-artifact@v4
         with:
           name: staticfiles

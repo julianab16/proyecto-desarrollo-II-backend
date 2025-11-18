@@ -52,7 +52,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             user.set_password(password)
         else:
             raise serializers.ValidationError(
-                {"password": "Este campo es obligatorio."}
+                "Este campo es obligatorio."
             )
         if role in ["ADMINISTRADOR", "VENDEDOR"]:
             user.is_staff = True
