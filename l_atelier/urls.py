@@ -14,33 +14,38 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include
+
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.http import JsonResponse
+from django.urls import include, path
+
 
 def api_root(request):
     """Página de inicio de la API"""
-    return JsonResponse({
-        'message': 'API L\'Atelier - Backend',
-        'version': '1.0',
-        'status': 'running',
-        'database': 'Supabase PostgreSQL',
-        'endpoints': {
-            'admin': '/admin/',
-            'api_docs': {
-                'users': '/api/users/',
-                'products': '/api/products/',
-                'auth': {
-                    'register': '/api/auth/register/',
-                    'login': '/api/auth/token/',
-                    'refresh': '/api/auth/token/refresh/',
-                    'me': '/api/auth/me/',
-                }
-            }
+    return JsonResponse(
+        {
+            "message": "API L'Atelier - Backend",
+            "version": "1.0",
+            "status": "running",
+            "database": "Supabase PostgreSQL",
+            "endpoints": {
+                "admin": "/admin/",
+                "api_docs": {
+                    "users": "/api/users/",
+                    "products": "/api/products/",
+                    "auth": {
+                        "register": "/api/auth/register/",
+                        "login": "/api/auth/token/",
+                        "refresh": "/api/auth/token/refresh/",
+                        "me": "/api/auth/me/",
+                    },
+                },
+            },
         }
-    })
+    )
+
 
 def healthz(request):
     """Health check endpoint para Render"""
@@ -53,7 +58,10 @@ urlpatterns = [
     path('api/', include(('apps.user.urls', 'user'), namespace='user')),
     path('api/', include(('apps.product.urls', 'product'), namespace='product')),
 
+    path("", api_root, name="api-root"),  # Página de inicio con info de la API
+   
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

@@ -1,5 +1,6 @@
 .env
 .env.production
+*.venv
 *.log
 *.pot
 *.pyc
