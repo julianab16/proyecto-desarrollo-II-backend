@@ -1,10 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
-
 from apps.user.models import User
-
-User = get_user_model()
 
 class UserViewSetBasicTest(TestCase):
 
