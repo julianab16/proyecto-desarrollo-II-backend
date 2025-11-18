@@ -2,7 +2,7 @@ name: CI/CD Pipeline con SonarQube
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, jsrr]
   pull_request:
     types: [opened, synchronize, reopened]
 
