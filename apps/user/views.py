@@ -6,7 +6,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializer import RegisterSerializer, UserSerializer
+from .models import User
+import logging
 
+logger = logging.getLogger(__name__)
+
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -26,11 +32,25 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        user = User.objects.get(id=response.data["id"])
-        refresh = RefreshToken.for_user(user)
-        response.data["refresh"] = str(refresh)
-        response.data["access"] = str(refresh.access_token)
+        try:
+            response = super().create(request, *args, **kwargs)
+        except Exception as e:
+            errors = None
+            try:
+                serializer = self.get_serializer(data={k: v for k, v in request.data.items() if k != 'password'})
+                serializer.is_valid(raise_exception=False)
+                errors = serializer.errors
+            except Exception:
+                errors = None
+            logger.warning(
+                "Register failed. username=%s email=%s errors=%s exception=%s",
+                request.data.get('username'), request.data.get('email'), errors, str(e)
+            )
+            raise
+
+       
+       
+
         return response
 
 
@@ -56,39 +76,46 @@ class MeView(APIView):
             {"detail": "Cuenta eliminada correctamente."}, status=204)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-
+        username = request.data.get('username')
+        password = request.data.get('password')
         if not username or not password:
+            # No loggeamos la contraseña. Registramos que faltan credenciales y las claves recibidas.
+            logger.warning("Login failed - missing credentials. data_keys=%s", list(request.data.keys()))
             return Response(
                 {"detail": "Usuario y contraseña son obligatorios."}, status=400
             )
 
         user = User.objects.filter(username=username).first()
         if not user or not user.check_password(password):
-            return Response({"detail": "Credenciales inválidas."}, status=401)
-
+            logger.info("Login failed - invalid credentials for username=%s", username)
+            return Response(
+                {'detail': 'Credenciales inválidas.'},
+                status=401
+            )
+        
         if not user.is_active:
+            logger.warning("Login failed - inactive user username=%s id=%s", username, user.id)
             return Response(
                 {"detail": "Usuario inactivo. Contacta al administrador."}, status=403
             )
 
         refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "role": user.role,
-                    "is_staff": user.is_staff,
-                },
-            },
-            status=200,
-        )
+        logger.info("User login successful username=%s id=%s", username, user.id)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            #'user': UserSerializer(user).data,  
+             'user': {
+                 'id': user.id,
+                 'username': user.username,
+                 'email': user.email,
+                'role': user.role,
+                'is_staff': user.is_staff
+             }
+             
+        }, status=200)
