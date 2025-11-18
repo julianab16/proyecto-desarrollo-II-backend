@@ -239,3 +239,15 @@ jobs:
           name: staticfiles
           path: staticfiles/
           retention-days: 7
+          
+      - name: Confirmación final
+        if: success()
+        run: |
+          echo "🎉 Todo el pipeline se ejecutó correctamente."
+          echo "✔ Tests aprobados"
+          echo "✔ Cobertura mínima OK"
+          echo "✔ Análisis SonarQube completado"
+          echo "✔ Lint sin errores"
+          echo "✔ Build generado"
+          echo ""
+          echo "🚀 ¡Proyecto validado y listo!"
