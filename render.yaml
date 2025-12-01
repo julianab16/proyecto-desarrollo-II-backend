@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: l-atelier-backend
+    env: python
+    region: oregon
+
+    buildCommand: |
+      pip install -r requirements.txt
+
+    startCommand: |
+      gunicorn l_atelier.wsgi:application
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13
+      - key: DJANGO_SETTINGS_MODULE
+        value: l_atelier.settings
+      - key: SECRET_KEY
+        generateValue: true
+      - fromGroup: l-atelier-env
+
+    autoDeploy: true
+
+    healthCheckPath: /
