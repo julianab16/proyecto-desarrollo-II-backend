@@ -49,8 +49,10 @@ else:
     SECRET_KEY = config("SECRET_KEY")
     DEBUG = config("DEBUG", default=False, cast=bool)
     ALLOWED_HOSTS = config(
-        "ALLOWED_HOSTS",
-        default="localhost,127.0.0.1").split(",")
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1"
+    ).replace(" ", "").split(",")
+
 
     # Database para desarrollo/producción
     DATABASES = {
@@ -73,6 +75,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 AUTH_USER_MODEL = "user.User"
 # Application definition
+# Hosts permitidos
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+
+if RENDER_EXTERNAL_HOSTNAME:
+    # Si estamos en Render, permitimos el dominio generado automáticamente
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    print("🔧 Render detectado. Host permitido:", RENDER_EXTERNAL_HOSTNAME)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
