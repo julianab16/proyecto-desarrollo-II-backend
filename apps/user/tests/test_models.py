@@ -23,7 +23,6 @@ class UserModelTest(TestCase):
     def test_create_user_success(self):
         """Test: Crear usuario correctamente"""
         user = User.objects.create_user(**self.user_data)
-        
         self.assertEqual(user.username, 'testuser')
         self.assertEqual(user.first_name, 'JUAN')  # Debe convertirse a mayúsculas
         self.assertEqual(user.last_name, 'PÉREZ')
@@ -67,22 +66,18 @@ class UserModelTest(TestCase):
     def test_duplicate_dni_raises_error(self):
         """Test: DNI duplicado genera error"""
         User.objects.create_user(**self.user_data)
-        
         data = self.user_data.copy()
         data['username'] = 'otrouser'
         data['email'] = 'otro@test.com'
-        
         with self.assertRaises(IntegrityError):
             User.objects.create_user(**data)
 
     def test_duplicate_username_raises_error(self):
         """Test: Username duplicado genera error"""
         User.objects.create_user(**self.user_data)
-        
         data = self.user_data.copy()
         data['dni'] = '9876543210'
         data['email'] = 'otro@test.com'
-        
         with self.assertRaises(IntegrityError):
             User.objects.create_user(**data)
 
@@ -90,7 +85,6 @@ class UserModelTest(TestCase):
         """Test: Número de teléfono inválido"""
         data = self.user_data.copy()
         data['phone_number'] = '1234567890'  # No empieza con 3 o 6
-        
         user = User(**data)
         with self.assertRaises(ValidationError):
             user.full_clean()
@@ -115,7 +109,6 @@ class UserModelTest(TestCase):
         """Test: DNI muy corto es inválido"""
         data = self.user_data.copy()
         data['dni'] = '123456'  # Menos de 7 dígitos
-        
         user = User(**data)
         with self.assertRaises(ValidationError):
             user.full_clean()
@@ -124,7 +117,6 @@ class UserModelTest(TestCase):
         """Test: DNI muy largo es inválido"""
         data = self.user_data.copy()
         data['dni'] = '12345678901'  # Más de 10 dígitos
-        
         user = User(**data)
         with self.assertRaises(ValidationError):
             user.full_clean()
@@ -172,11 +164,8 @@ class UserModelTest(TestCase):
 
     def test_user_ordering(self):
         """Test: Usuarios se ordenan por ID"""
-        User.objects.create_user(username='user1', email='u1@test.com', 
-                                dni='1111111111', phone_number='3001111111', password='pass')
-        User.objects.create_user(username='user2', email='u2@test.com', 
-                                dni='2222222222', phone_number='3002222222', password='pass')
-        
+        User.objects.create_user(username='user1', email='u1@test.com', dni='1111111111', phone_number='3001111111', password='pass')
+        User.objects.create_user(username='user2', email='u2@test.com', dni='2222222222', phone_number='3002222222', password='pass')
         users = User.objects.all()
         self.assertTrue(users[0].id < users[1].id)
 

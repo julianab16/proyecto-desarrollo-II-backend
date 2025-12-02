@@ -54,7 +54,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov
+          pip install pytest pytest-django pytest-cov django-cors-headers whitenoise
 
       - name: Ejecutar migraciones
         run: python manage.py migrate --noinput
@@ -119,8 +119,16 @@ jobs:
             echo "⚠️ coverage.xml NO encontrado - SonarQube continuará sin métricas de cobertura"
             echo "coverage_found=false" >> $GITHUB_OUTPUT
             echo "COVERAGE_EXISTS=false" >> $GITHUB_ENV
-          fi
-  
+          fi   
+          
+      - name: Probar conexión a SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -e
+          echo "Comprobando conexión a SonarCloud..."
+          curl -sS -u "${SONAR_HOST_URL}:" "https://sonarcloud.io/api/server/version" || { echo "No se pudo conectar a SonarCloud"; exit 1; }
+
       - name: Análisis con SonarQube
         uses: SonarSource/sonarqube-scan-action@master
         env:
@@ -217,7 +225,7 @@ jobs:
           flake8 .
 
   build:
-    name: Build y Deploy
+    name: Build
     runs-on: ubuntu-latest
     needs: [test, sonarqube, lint]
 
@@ -239,3 +247,15 @@ jobs:
           name: staticfiles
           path: staticfiles/
           retention-days: 7
+
+      - name: Confirmación final
+        if: success()
+        run: |
+          echo "🎉 Todo el pipeline se ejecutó correctamente."
+          echo "✔ Tests aprobados"
+          echo "✔ Cobertura mínima OK"
+          echo "✔ Análisis SonarQube completado"
+          echo "✔ Lint sin errores"
+          echo "✔ Build generado"
+          echo ""
+          echo "🚀 ¡Proyecto validado y listo!"
