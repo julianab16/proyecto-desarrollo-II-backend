@@ -220,7 +220,7 @@ class ProductViewSetTest(TestCase):
     def test_ordering_by_created_at_desc(self):
         """Verifica que los productos se ordenan por created_at descendente por defecto"""
         # Crear productos adicionales
-        product2 = Product.objects.create(
+        Product.objects.create(
             code="PROD002",
             name="Producto Segundo",
             description="Segundo producto",
@@ -230,7 +230,7 @@ class ProductViewSetTest(TestCase):
             owner=self.owner_user,
         )
         
-        product3 = Product.objects.create(
+        Product.objects.create(
             code="PROD003",
             name="Producto Tercero",
             description="Tercer producto",
@@ -254,7 +254,7 @@ class ProductViewSetTest(TestCase):
     def test_get_queryset_usuarios_no_autenticados_solo_ven_activos(self):
         """Verifica que usuarios no autenticados solo ven productos activos"""
         # Crear producto inactivo
-        inactive_product = Product.objects.create(
+        Product.objects.create(
             code="PROD_INACTIVE",
             name="Producto Inactivo",
             description="Este producto está inactivo",
@@ -265,7 +265,7 @@ class ProductViewSetTest(TestCase):
         )
         
         # Crear producto activo adicional
-        active_product = Product.objects.create(
+        Product.objects.create(
             code="PROD_ACTIVE",
             name="Producto Activo",
             description="Este producto está activo",
@@ -289,7 +289,7 @@ class ProductViewSetTest(TestCase):
     def test_get_queryset_usuarios_autenticados_ven_todos(self):
         """Verifica que usuarios autenticados ven todos los productos (activos e inactivos)"""
         # Crear producto inactivo
-        inactive_product = Product.objects.create(
+        Product.objects.create(
             code="PROD_INACTIVE2",
             name="Producto Inactivo 2",
             description="Este producto está inactivo",
@@ -300,7 +300,7 @@ class ProductViewSetTest(TestCase):
         )
         
         # Crear producto activo adicional
-        active_product = Product.objects.create(
+        Product.objects.create(
             code="PROD_ACTIVE2",
             name="Producto Activo 2",
             description="Este producto está activo",
@@ -365,3 +365,261 @@ class ProductViewSetTest(TestCase):
         
         # Usuario autenticado ve más productos que el no autenticado
         self.assertGreater(len(codes_auth), len(codes_no_auth))
+
+    def test_search_products_por_termino(self):
+        """Verifica búsqueda de productos por término de búsqueda"""
+        # Crear productos con diferentes características
+        Product.objects.create(
+            code="LAPTOP001",
+            name="Laptop Gaming",
+            description="Laptop de alto rendimiento",
+            price=1500.00,
+            stock=5,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="MOUSE001",
+            name="Mouse Inalámbrico",
+            description="Mouse ergonómico",
+            price=50.00,
+            stock=20,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?q=laptop'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('LAPTOP001', codes)
+        self.assertNotIn('MOUSE001', codes)
+
+    def test_search_products_por_precio_minimo(self):
+        """Verifica filtro de productos por precio mínimo"""
+        Product.objects.create(
+            code="CHEAP001",
+            name="Producto Barato",
+            description="Económico",
+            price=10.00,
+            stock=50,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="EXPENSIVE001",
+            name="Producto Caro",
+            description="Premium",
+            price=500.00,
+            stock=5,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?min_price=100'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('EXPENSIVE001', codes)
+        self.assertNotIn('CHEAP001', codes)
+
+    def test_search_products_por_precio_maximo(self):
+        """Verifica filtro de productos por precio máximo"""
+        Product.objects.create(
+            code="LOW001",
+            name="Precio Bajo",
+            description="Accesible",
+            price=30.00,
+            stock=100,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="HIGH001",
+            name="Precio Alto",
+            description="Costoso",
+            price=800.00,
+            stock=2,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?max_price=200'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('LOW001', codes)
+        self.assertNotIn('HIGH001', codes)
+
+    def test_search_products_combinacion_filtros(self):
+        """Verifica combinación de múltiples filtros"""
+        Product.objects.create(
+            code="TABLET001",
+            name="Tablet Android",
+            description="Tablet de 10 pulgadas",
+            price=250.00,
+            stock=15,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="PHONE001",
+            name="Smartphone",
+            description="Teléfono inteligente",
+            price=600.00,
+            stock=8,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="TABLET002",
+            name="Tablet económica",
+            description="Tablet básica",
+            price=150.00,
+            stock=30,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?q=tablet&min_price=200&max_price=300'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('TABLET001', codes)  # Cumple todos los criterios
+        self.assertNotIn('PHONE001', codes)  # No es tablet
+        self.assertNotIn('TABLET002', codes)  # Precio muy bajo
+
+    def test_search_products_sin_parametros(self):
+        """Verifica que sin parámetros devuelve todos los productos activos"""
+        Product.objects.create(
+            code="ANY001",
+            name="Cualquier Producto",
+            description="Producto genérico",
+            price=100.00,
+            stock=10,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Debe devolver al menos el producto del setUp y el nuevo
+        self.assertGreaterEqual(len(response.data), 2)
+
+    def test_search_products_sin_autenticacion(self):
+        """Verifica que usuarios no autenticados pueden buscar productos"""
+        Product.objects.create(
+            code="PUBLIC001",
+            name="Producto Público",
+            description="Visible para todos",
+            price=75.00,
+            stock=25,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        # Sin autenticación
+        url = '/api/products/search_products/?q=público'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('PUBLIC001', codes)
+
+    def test_search_products_busqueda_en_descripcion(self):
+        """Verifica que la búsqueda funciona en el campo descripción"""
+        Product.objects.create(
+            code="SPECIAL001",
+            name="Producto X",
+            description="Característica única especial",
+            price=200.00,
+            stock=5,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?q=única'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('SPECIAL001', codes)
+
+    def test_search_products_busqueda_en_codigo(self):
+        """Verifica que la búsqueda funciona en el campo código"""
+        Product.objects.create(
+            code="ABC123XYZ",
+            name="Producto Codificado",
+            description="Producto con código único",
+            price=150.00,
+            stock=10,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?q=ABC123'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('ABC123XYZ', codes)
+
+    def test_search_products_sin_resultados(self):
+        """Verifica que devuelve lista vacía cuando no hay coincidencias"""
+        url = '/api/products/search_products/?q=ProductoInexistente12345'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_search_products_rango_precios(self):
+        """Verifica que funciona correctamente el rango de precios"""
+        Product.objects.create(
+            code="RANGE001",
+            name="En Rango",
+            description="Precio en rango",
+            price=150.00,
+            stock=10,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="OUTRANGE001",
+            name="Fuera de Rango Bajo",
+            description="Muy barato",
+            price=50.00,
+            stock=20,
+            is_active=True,
+            owner=self.owner_user,
+        )
+        
+        Product.objects.create(
+            code="OUTRANGE002",
+            name="Fuera de Rango Alto",
+            description="Muy caro",
+            price=500.00,
+            stock=3,
+            is_active=True,
+            owner=self.owner_user,
+        )
+
+        url = '/api/products/search_products/?min_price=100&max_price=200'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [p['code'] for p in response.data]
+        self.assertIn('RANGE001', codes)
+        self.assertNotIn('OUTRANGE001', codes)
+        self.assertNotIn('OUTRANGE002', codes)

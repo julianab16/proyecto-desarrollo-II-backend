@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -80,7 +81,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         query = request.query_params.get('q', None)
         min_price = request.query_params.get('min_price', None)
         max_price = request.query_params.get('max_price', None)
-        category = request.query_params.get('category', None)
         
         # Filtrar por término de búsqueda
         if query:
