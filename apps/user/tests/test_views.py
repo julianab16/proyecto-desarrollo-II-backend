@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from apps.user.models import User
+
 class UserViewSetTest(TestCase):
     """Tests para el ViewSet de usuarios"""
 
@@ -152,3 +153,56 @@ class LoginViewTest(TestCase):
             response.data['detail'], 
             "Usuario y contraseña son obligatorios."
         )
+
+    def test_login_usuario_no_existe(self):
+        """Verifica que falla el login cuando el usuario no existe"""
+        data = {
+            "username": "usuarioinexistente",
+            "password": "password123"
+        }
+        response = self.client.post(self.login_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], 'Credenciales inválidas.')
+
+    def test_login_password_incorrecta(self):
+        """Verifica que falla el login cuando la contraseña es incorrecta"""
+        data = {
+            "username": "usuarioactivo",
+            "password": "passwordincorrecta"
+        }
+        response = self.client.post(self.login_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], 'Credenciales inválidas.')
+
+    def test_login_usuario_inactivo(self):
+        """Verifica que falla el login cuando el usuario está inactivo"""
+        data = {
+            "username": "usuarioinactivo",
+            "password": "password123"
+        }
+        response = self.client.post(self.login_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('detail', response.data)
+        self.assertEqual(
+            response.data['detail'], 
+            "Usuario inactivo. Contacta al administrador."
+        )
+
+    def test_login_exitoso(self):
+        """Verifica que el login es exitoso con credenciales válidas"""
+        data = {
+            "username": "usuarioactivo",
+            "password": "password123"
+        }
+        response = self.client.post(self.login_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+        self.assertIn('user', response.data)
+        self.assertEqual(response.data['user']['username'], 'usuarioactivo')
