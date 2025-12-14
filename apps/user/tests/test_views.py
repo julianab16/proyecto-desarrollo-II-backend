@@ -235,9 +235,7 @@ class RegisterUserViewTest(APITestCase):
             'role': User.CLIENTE
         }
         
-        with patch('apps.user.views.logger.warning') as mock_logger:
-            response = self.client.post(self.register_url, payload, format='json')
-            
+        with patch('apps.user.views.logger.warning') as mock_logger:            
             # Verificar que se llamó al logger
             self.assertTrue(mock_logger.called)
             
