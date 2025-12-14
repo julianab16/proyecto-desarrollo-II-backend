@@ -1,8 +1,10 @@
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework import generics, viewsets
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-
+from rest_framework.views import APIView
 from .models import Product
 from .serializer import ProductSerializer
 
@@ -42,7 +44,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        # cualquier usuario autenticado puede crear productos
+        if not (self.request.user.is_staff or self.request.user.role == "VENDEDOR"):
+           raise PermissionDenied("Solo vendedores o administradores pueden crear productos.")
         serializer.save(owner=self.request.user)
 
     def update(self, request, *args, **kwargs):
