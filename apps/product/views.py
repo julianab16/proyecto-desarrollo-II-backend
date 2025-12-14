@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -66,6 +67,36 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         products = Product.objects.filter(owner=request.user)
         serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def search_products(self, request):
+        """
+        Búsqueda avanzada de productos
+        GET /api/products/search_products/?q=termino&min_price=100&max_price=500
+        """
+        queryset = self.get_queryset()
+        
+        # Parámetros de búsqueda
+        query = request.query_params.get('q', None)
+        min_price = request.query_params.get('min_price', None)
+        max_price = request.query_params.get('max_price', None)
+        
+        # Filtrar por término de búsqueda
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query) | 
+                Q(description__icontains=query) | 
+                Q(code__icontains=query)
+            )
+        
+        # Filtrar por rango de precios
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
+        
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
