@@ -61,6 +61,217 @@ class RegisterUserViewTest(APITestCase):
         self.assertIn(resp.status_code, (200, 201))
         self.assertTrue(User.objects.filter(username='newuser').exists())
 
+    def test_register_usuario_duplicado(self):
+        """Verifica que falla al intentar registrar un usuario duplicado"""
+        # Crear usuario inicial
+        User.objects.create_user(
+            username='existente',
+            email='existe@example.com',
+            password='password123',
+            first_name='Usuario',
+            last_name='Existente',
+            dni='1111111111',
+            phone_number='3001111111',
+            role=User.CLIENTE
+        )
+        
+        # Intentar crear usuario con el mismo username
+        payload = {
+            'username': 'existente',
+            'email': 'nuevo@example.com',
+            'password': 'newpass123',
+            'first_name': 'Nuevo',
+            'last_name': 'Usuario',
+            'dni': '2222222222',
+            'phone_number': '3002222222',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_email_duplicado(self):
+        """Verifica que falla al intentar registrar un email duplicado"""
+        # Crear usuario inicial
+        User.objects.create_user(
+            username='user1',
+            email='duplicate@example.com',
+            password='password123',
+            first_name='Usuario',
+            last_name='Uno',
+            dni='3333333333',
+            phone_number='3003333333',
+            role=User.CLIENTE
+        )
+        
+        # Intentar crear usuario con el mismo email
+        payload = {
+            'username': 'user2',
+            'email': 'duplicate@example.com',
+            'password': 'newpass123',
+            'first_name': 'Usuario',
+            'last_name': 'Dos',
+            'dni': '4444444444',
+            'phone_number': '3004444444',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_dni_duplicado(self):
+        """Verifica que falla al intentar registrar un DNI duplicado"""
+        # Crear usuario inicial
+        User.objects.create_user(
+            username='user3',
+            email='user3@example.com',
+            password='password123',
+            first_name='Usuario',
+            last_name='Tres',
+            dni='5555555555',
+            phone_number='3005555555',
+            role=User.CLIENTE
+        )
+        
+        # Intentar crear usuario con el mismo DNI
+        payload = {
+            'username': 'user4',
+            'email': 'user4@example.com',
+            'password': 'newpass123',
+            'first_name': 'Usuario',
+            'last_name': 'Cuatro',
+            'dni': '5555555555',
+            'phone_number': '3006666666',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_campos_faltantes(self):
+        """Verifica que falla cuando faltan campos requeridos"""
+        payload = {
+            'username': 'incomplete',
+            'password': 'pass123'
+            # Faltan campos requeridos
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_dni_invalido_corto(self):
+        """Verifica que falla con DNI muy corto"""
+        payload = {
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'password': 'pass123',
+            'first_name': 'Test',
+            'last_name': 'User',
+            'dni': '123',  # Muy corto
+            'phone_number': '3001234567',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_dni_invalido_largo(self):
+        """Verifica que falla con DNI muy largo"""
+        payload = {
+            'username': 'testuser2',
+            'email': 'test2@example.com',
+            'password': 'pass123',
+            'first_name': 'Test',
+            'last_name': 'User',
+            'dni': '12345678901',  # Muy largo
+            'phone_number': '3001234567',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_telefono_invalido(self):
+        """Verifica que falla con teléfono inválido"""
+        payload = {
+            'username': 'testuser3',
+            'email': 'test3@example.com',
+            'password': 'pass123',
+            'first_name': 'Test',
+            'last_name': 'User',
+            'dni': '1234567890',
+            'phone_number': '1234567890',  # No empieza con 3 o 6
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_logging_error_sin_password(self):
+        """Verifica que el logging de errores no incluye la contraseña"""
+        from unittest.mock import patch
+        
+        # Intentar registrar con datos duplicados para provocar error
+        User.objects.create_user(
+            username='existing',
+            email='existing@example.com',
+            password='password123',
+            first_name='Existing',
+            last_name='User',
+            dni='9999999999',
+            phone_number='3009999999',
+            role=User.CLIENTE
+        )
+        
+        with patch('apps.user.views.logger.warning') as mock_logger:
+            # Intentar registrar con username duplicado
+            payload = {
+                'username': 'existing',  # Este username ya existe
+                'email': 'newemail@example.com',
+                'password': 'secretpassword123',
+                'first_name': 'New',
+                'last_name': 'User',
+                'dni': '8888888888',
+                'phone_number': '3008888888',
+                'role': User.CLIENTE
+            }
+            
+            response = self.client.post(self.register_url, payload, format='json')
+            
+            # Verificar que falló el registro
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            
+            # Verificar que se llamó al logger
+            self.assertTrue(mock_logger.called)
+            
+            # Obtener los argumentos de la llamada al logger
+            call_args = mock_logger.call_args
+            
+            # Verificar que 'password' no aparece en los argumentos del log
+            log_message = str(call_args)
+            self.assertNotIn('secretpassword123', log_message)
+
+    def test_register_exitoso_retorna_usuario(self):
+        """Verifica que registro exitoso retorna los datos del usuario"""
+        payload = {
+            'username': 'successuser',
+            'email': 'success@example.com',
+            'password': 'pass123',
+            'first_name': 'Success',
+            'last_name': 'User',
+            'dni': '7777777777',
+            'phone_number': '3007777777',
+            'role': User.CLIENTE
+        }
+        
+        response = self.client.post(self.register_url, payload, format='json')
+        
+        self.assertIn(response.status_code, (200, 201))
+        self.assertIn('username', response.data)
+        self.assertEqual(response.data['username'], 'successuser')
+        self.assertEqual(response.data['email'], 'success@example.com')
+
+
 class MeViewTest(TestCase):
     """Tests para la vista Me (perfil del usuario)"""
 
