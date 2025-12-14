@@ -223,7 +223,24 @@ class RegisterUserViewTest(APITestCase):
             role=User.CLIENTE
         )
         
-        with patch('apps.user.views.logger.warning') as mock_logger:            
+        with patch('apps.user.views.logger.warning') as mock_logger:
+            # Intentar registrar con username duplicado
+            payload = {
+                'username': 'existing',  # Este username ya existe
+                'email': 'newemail@example.com',
+                'password': 'secretpassword123',
+                'first_name': 'New',
+                'last_name': 'User',
+                'dni': '8888888888',
+                'phone_number': '3008888888',
+                'role': User.CLIENTE
+            }
+            
+            response = self.client.post(self.register_url, payload, format='json')
+            
+            # Verificar que falló el registro
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            
             # Verificar que se llamó al logger
             self.assertTrue(mock_logger.called)
             
