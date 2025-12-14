@@ -4,6 +4,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import LoginView, MeView, RegisterView, UserViewSet
 
+app_name = 'user'
+
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
 
