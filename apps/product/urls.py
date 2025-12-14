@@ -1,11 +1,8 @@
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
-
-from .views import ProductViewSet  # crea este ViewSet en apps/product/views.py
-
-router = DefaultRouter()
-router.register(r"products", ProductViewSet, basename="product")
+from django.urls import path
+from .views import ProductViewSet
 
 urlpatterns = [
-    path("", include(router.urls)),  # -> /api/products/...
+    path("products/", ProductViewSet.as_view({'get': 'list', 'post': 'create'}), name='product-list'),
+    path("products/my_products/", ProductViewSet.as_view({'get': 'my_products'}), name='my-products'),
+    path("products/<slug:slug>/", ProductViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='product-detail'),
 ]
