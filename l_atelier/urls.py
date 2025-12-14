@@ -53,13 +53,11 @@ def healthz(request):
 
 
 urlpatterns = [
-
     path('', api_root, name='api-root'),  # Página de inicio con info de la API
     path('healthz', healthz, name='healthz'),  # Health check
     path('admin/', admin.site.urls),
-    path('api/', include(('apps.user.urls', 'user'), namespace='user')),
-    path('api/', include(('apps.product.urls', 'product'), namespace='product')),
-    path("", api_root, name="api-root"),  # Página de inicio con info de la API
+    path('api/', include('apps.user.urls')),
+    path('api/', include('apps.product.urls')),
 ]
 
 if settings.DEBUG:

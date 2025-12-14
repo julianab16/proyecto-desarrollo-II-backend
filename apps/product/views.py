@@ -1,4 +1,5 @@
 from rest_framework import filters, permissions, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import generics, viewsets
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -12,7 +13,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     CRUD para Productos.
     - Lectura pública (solo activos para usuarios anónimos).
-    - Escritura solo para usuarios autenticados.
+    - Cualquier usuario autenticado puede crear productos (vendedores).
+    - Solo el propietario o staff puede editar/eliminar sus productos.
     """
 
     queryset = Product.objects.all()
@@ -24,6 +26,31 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
     lookup_field = "slug"
 
+    def get_object(self):
+        """
+        Override para soportar búsqueda por slug o pk
+        Mantiene compatibilidad con frontend que use IDs
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Si viene pk en la URL, buscar por pk
+        if 'pk' in self.kwargs:
+            obj = queryset.filter(pk=self.kwargs['pk']).first()
+            if obj:
+                self.check_object_permissions(self.request, obj)
+                return obj
+        
+        # Si viene slug en la URL, buscar por slug
+        if 'slug' in self.kwargs:
+            obj = queryset.filter(slug=self.kwargs['slug']).first()
+            if obj:
+                self.check_object_permissions(self.request, obj)
+                return obj
+        
+        # Si no se encuentra, lanzar 404
+        from django.http import Http404
+        raise Http404
+
     def get_queryset(self):
         qs = super().get_queryset()
         # usuarios no autenticados ven solo productos activos
@@ -31,10 +58,42 @@ class ProductViewSet(viewsets.ModelViewSet):
             qs = qs.filter(is_active=True)
         return qs
 
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def my_products(self, request):
+        """
+        Endpoint para que los vendedores vean solo sus propios productos.
+        GET /api/products/my_products/
+        """
+        products = Product.objects.filter(owner=request.user)
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         if not (self.request.user.is_staff or self.request.user.role == "VENDEDOR"):
            raise PermissionDenied("Solo vendedores o administradores pueden crear productos.")
         serializer.save(owner=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Override update para verificar permisos antes de actualizar
+        """
+        instance = self.get_object()
+        # Verificar que el usuario sea el propietario o staff
+        if not (request.user.is_staff or instance.owner == request.user):
+            raise PermissionDenied(
+                "No puedes actualizar productos de otros usuarios.")
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Override partial_update para verificar permisos antes de actualizar
+        """
+        instance = self.get_object()
+        # Verificar que el usuario sea el propietario o staff
+        if not (request.user.is_staff or instance.owner == request.user):
+            raise PermissionDenied(
+                "No puedes actualizar productos de otros usuarios.")
+        return super().partial_update(request, *args, **kwargs)
 
     def perform_update(self, serializer):
         # solo staff o creador pueden actualizar
