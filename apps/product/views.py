@@ -24,6 +24,31 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
     lookup_field = "slug"
 
+    def get_object(self):
+        """
+        Override para soportar búsqueda por slug o pk
+        Mantiene compatibilidad con frontend que use IDs
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Si viene pk en la URL, buscar por pk
+        if 'pk' in self.kwargs:
+            obj = queryset.filter(pk=self.kwargs['pk']).first()
+            if obj:
+                self.check_object_permissions(self.request, obj)
+                return obj
+        
+        # Si viene slug en la URL, buscar por slug
+        if 'slug' in self.kwargs:
+            obj = queryset.filter(slug=self.kwargs['slug']).first()
+            if obj:
+                self.check_object_permissions(self.request, obj)
+                return obj
+        
+        # Si no se encuentra, lanzar 404
+        from django.http import Http404
+        raise Http404
+
     def get_queryset(self):
         qs = super().get_queryset()
         # usuarios no autenticados ven solo productos activos

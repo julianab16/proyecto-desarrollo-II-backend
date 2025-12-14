@@ -110,18 +110,37 @@ GET /api/products/
 ---
 
 ### 4. **Ver un Producto Específico** (GET)
+
+**Opción 1: Por Slug** (Recomendado - URLs amigables)
 ```
 GET /api/products/<slug>/
 ```
 
-Ejemplo: `GET /api/products/mi-producto/`
+**Opción 2: Por ID** (Compatibilidad con frontend existente)
+```
+GET /api/products/<id>/
+```
+
+**Ejemplos:**
+- `GET /api/products/mi-producto/` ✅ Usando slug
+- `GET /api/products/123/` ✅ Usando ID
+
+**⚠️ Nota:** Ambos métodos funcionan. Puedes usar el que prefieras según tu frontend.
 
 ---
 
 ### 5. **Actualizar un Producto** (PUT/PATCH)
+
+**Opción 1: Por Slug**
 ```
 PUT /api/products/<slug>/
 PATCH /api/products/<slug>/
+```
+
+**Opción 2: Por ID**
+```
+PUT /api/products/<id>/
+PATCH /api/products/<id>/
 ```
 
 **Headers requeridos:**
@@ -139,8 +158,15 @@ PATCH /api/products/<slug>/
 ---
 
 ### 6. **Eliminar un Producto** (DELETE)
+
+**Opción 1: Por Slug**
 ```
 DELETE /api/products/<slug>/
+```
+
+**Opción 2: Por ID**
+```
+DELETE /api/products/<id>/
 ```
 
 **Headers requeridos:**
@@ -148,7 +174,9 @@ DELETE /api/products/<slug>/
 {
   "Authorization": "Bearer <tu_token_jwt>"
 }
-``⚠️ IMPORTANTE: Solo puedes eliminar tus propios productos.**
+```
+
+**⚠️ IMPORTANTE: Solo puedes eliminar tus propios productos.**
 - Si intentas eliminar un producto de otro vendedor, recibirás: **403 Forbidden**
 - Solo el propietario o un administrador puede eliminar productos
 
@@ -265,14 +293,28 @@ curl -X GET http://127.0.0.1:8000/api/products/my_products/ \
 
 ---
 
-## Notas Importantesvendedores y administradores)
+## Notas Importantes
+
+1. ✅ **Cualquier usuario autenticado puede crear productos** (vendedores y administradores)
 2. ✅ **Los productos se guardan automáticamente con el usuario como propietario**
 3. 🔒 **Solo puedes editar/eliminar tus propios productos** (o ser administrador)
 4. 🔒 **Intentar modificar productos ajenos devuelve error 403 Forbidden**
-5. ⚠️ El campo `code` debe ser único en toda la base de datos
-6. ⚠️ El código se convierte automáticamente a mayúsculas
-7. ⚠️ El slug se genera automáticamente del nombre y es único
-8. ⚠️ Los vendedores NO tienen permisos de administrador (is_staff=False)
+5. 🔄 **Compatibilidad dual: ID y Slug** - Puedes acceder a productos por ID o por slug
+6. ⚠️ El campo `code` debe ser único en toda la base de datos
+7. ⚠️ El código se convierte automáticamente a mayúsculas
+8. ⚠️ El slug se genera automáticamente del nombre y es único
+9. ⚠️ Los vendedores NO tienen permisos de administrador (is_staff=False)
+
+## Rutas de Acceso a Productos
+
+El API soporta **dos formas de acceder a productos individuales**:
+
+| Método | Ejemplo | Uso |
+|--------|---------|-----|
+| **Por Slug** | `/api/products/mi-producto/` | URLs amigables y legibles (recomendado) |
+| **Por ID** | `/api/products/123/` | Compatibilidad con frontend existente |
+
+Ambos métodos funcionan de manera idéntica. Usa el que mejor se adapte a tu aplicación.
 
 ## Códigos de Respuesta
 
