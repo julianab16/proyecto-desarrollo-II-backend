@@ -209,7 +209,6 @@ class RegisterUserViewTest(APITestCase):
 
     def test_register_logging_error_sin_password(self):
         """Verifica que el logging de errores no incluye la contraseña"""
-        import logging
         from unittest.mock import patch
         
         # Intentar registrar con datos duplicados para provocar error
@@ -223,17 +222,6 @@ class RegisterUserViewTest(APITestCase):
             phone_number='3009999999',
             role=User.CLIENTE
         )
-        
-        payload = {
-            'username': 'existing',
-            'email': 'new@example.com',
-            'password': 'secretpassword123',
-            'first_name': 'New',
-            'last_name': 'User',
-            'dni': '8888888888',
-            'phone_number': '3008888888',
-            'role': User.CLIENTE
-        }
         
         with patch('apps.user.views.logger.warning') as mock_logger:            
             # Verificar que se llamó al logger
