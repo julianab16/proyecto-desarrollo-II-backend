@@ -49,6 +49,7 @@ python -m coverage xml -o coverage.xml
 
 
 CI / SonarQube
+
 - El repo incluye `.github/workflows/django.yml` y `sonar-project.properties`.  
 - GitHub Actions generará `coverage.xml` y ejecutará Sonar/linters según la configuración.
 
@@ -56,3 +57,5 @@ Contribuir
 - Crear rama descriptiva: `git checkout -b feature/mi-cambio`
 - Commit y push: `git push -u origin feature/mi-cambio`
 - Abrir PR y esperar CI.
+
+fin
