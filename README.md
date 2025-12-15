@@ -57,5 +57,3 @@ Contribuir
 - Crear rama descriptiva: `git checkout -b feature/mi-cambio`
 - Commit y push: `git push -u origin feature/mi-cambio`
 - Abrir PR y esperar CI.
-
-fin
